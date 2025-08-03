@@ -1,0 +1,50 @@
+# MCP Control Plane Configuration
+
+server:
+  host: "0.0.0.0"
+  port: 8443
+  workers: 1
+  log_level: "INFO"
+  cors_origins: []
+
+# Authentication tokens for bridge clients
+auth_tokens:
+  - "dev-token-secure-string"
+  - "prod-token-different-string"
+
+# MCP servers to manage
+mcp_servers:
+  # Example filesystem server
+  - id: "filesystem"
+    name: "Filesystem MCP Server"
+    type: "python"
+    command: ["python", "-m", "mcp.server.stdio", "mcp_server_filesystem"]
+    cwd: null
+    env:
+      MCP_FILESYSTEM_ROOT: "/tmp"
+    timeout: 30
+    restart_on_failure: true
+    enabled: false  # Disabled by default until we have real MCP servers
+
+  # Example weather server (mock)
+  - id: "weather"
+    name: "Weather MCP Server"
+    type: "python"  
+    command: ["python", "mock_weather_server.py"]
+    cwd: null
+    env: {}
+    timeout: 30
+    restart_on_failure: true
+    enabled: false  # Disabled by default
+
+  # Example database server
+  - id: "database"
+    name: "Database MCP Server"
+    type: "npx"
+    command: ["npx", "@modelcontextprotocol/server-postgres"]
+    cwd: null
+    env:
+      DATABASE_URL: "postgresql://user:pass@localhost:5432/db"
+    timeout: 30
+    restart_on_failure: true
+    enabled: false  # Disabled by default

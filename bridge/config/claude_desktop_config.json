@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+   "mcp-bridge": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/Users/vvishnu/repository/personal/mcp_control_plane/bridge/src",
+        "run",
+        "bridge_client.py"
+      ],
+      "env": {
+        "MCP_CONTROL_PLANE_URL": "https://localhost:8443",
+        "MCP_AUTH_TOKEN": "dev-token-secure-string"
+      },
+      "stderr": true
+    }
+  }
+}
