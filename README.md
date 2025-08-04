@@ -18,13 +18,13 @@ graph TB
     end
     
     subgraph "MCP Bridge Client"
-        BridgeProcess[Bridge Process<br/>Python/UV]
-        StdIO[stdin/stdout<br/>JSON-RPC 2.0]
-        HTTPClient[HTTP Client<br/>Bearer Auth]
+        BridgeProcess[Bridge Process: Python/UV]
+        StdIO[stdin/stdout: JSON-RPC 2.0]
+        HTTPClient[HTTP Client: Bearer Auth]
     end
     
     subgraph "MCP Control Plane Server"
-        FastAPI[FastAPI Server<br/>Port 8444]
+        FastAPI[FastAPI Server: Port 8444]
         Auth[Bearer Token Auth]
         Router[Request Router]
         MCPPool[MCP Client Pool]
@@ -32,22 +32,21 @@ graph TB
     end
     
     subgraph "MCP Servers"
-        FS[Filesystem Server<br/>npx subprocess]
-        DB[Database Server<br/>python subprocess]
-        Custom[Custom Servers<br/>various runtimes]
+        FS[Filesystem Server: npx subprocess]
+        DB[Database Server: python subprocess]
+        Custom[Custom Servers: various runtimes]
     end
     
-    Client --|JSON-RPC via stdio| StdIO
+    Client -->|JSON-RPC via stdio| StdIO
     StdIO --> BridgeProcess
     BridgeProcess --> HTTPClient
-    HTTPClient --|HTTP POST/GET<br/>JSON payloads| FastAPI
+    HTTPClient -->|HTTP POST/GET: JSON payloads| FastAPI
     FastAPI --> Auth
     Auth --> Router
     Router --> MCPPool
-    MCPPool --|JSON-RPC via stdio| FS
-    MCPPool --|JSON-RPC via stdio| DB
-    MCPPool --|JSON-RPC via stdio| Custom
-    
+    MCPPool -->|JSON-RPC via stdio| FS
+    MCPPool -->|JSON-RPC via stdio| DB
+    MCPPool -->|JSON-RPC via stdio| Custom
     MCPPool --> Config
 ```
 
@@ -275,12 +274,6 @@ mcp_servers:
 - Run control plane on trusted networks
 - Regularly rotate authentication tokens
 - Monitor access logs for suspicious activity
-
-### Enterprise Deployment
-- Implement defense-in-depth security
-- Use mutual TLS for service communication
-- Deploy in private subnets with minimal exposure
-- Regular security audits and penetration testing
 
 ## Roadmap
 
