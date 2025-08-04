@@ -11,7 +11,7 @@ authors = [
     { name = "MCP Control Plane Team", email = "team@mcpcontrolplane.com" }
 ]
 license = { text = "MIT" }
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -39,7 +39,7 @@ dependencies = [
 dev = [
     "pytest>=7.4.0",
     "pytest-asyncio>=0.23.0",
-    "pytest-httpx>=0.22.0",
+    "pytest-httpx>=0.30.0",
     "black>=23.0.0",
     "isort>=5.12.0",
     "mypy>=1.7.0",
@@ -47,7 +47,7 @@ dev = [
 ]
 
 [project.scripts]
-mcp-control-plane = "control_plane_server:main"
+mcp-control-plane = "src.control_plane_server:main"
 
 [project.urls]
 Homepage = "https://github.com/mcpcontrolplane/control-plane"
@@ -58,7 +58,7 @@ Issues = "https://github.com/mcpcontrolplane/control-plane/issues"
 dev-dependencies = [
     "pytest>=7.4.0",
     "pytest-asyncio>=0.23.0",
-    "pytest-httpx>=0.22.0",
+    "pytest-httpx>=0.30.0",
     "black>=23.0.0",
     "isort>=5.12.0",
     "mypy>=1.7.0",

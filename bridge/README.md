@@ -40,7 +40,7 @@ Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/
         "run"
       ],
       "env": {
-        "MCP_CONTROL_PLANE_URL": "https://localhost:8443",
+        "MCP_CONTROL_PLANE_URL": "https://localhost:8444",
         "MCP_AUTH_TOKEN": "your-auth-token"
       }
     }

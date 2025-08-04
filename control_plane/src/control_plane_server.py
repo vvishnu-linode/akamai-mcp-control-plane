@@ -25,9 +25,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
 
-from .config import ControlPlaneConfig
-from .mcp_client_pool import MCPClientPool
-from .auth import AuthService
+from config import ControlPlaneConfig
+from mcp_client_pool import MCPClientPool
+from auth import AuthService
 
 
 # Configure structured logging
@@ -62,41 +62,41 @@ class MCPInitializeRequest(BaseModel):
     """MCP initialize request from bridge client"""
     method: str = "initialize"
     params: Dict[str, Any]
-    id: Optional[str] = None
+    id: Optional[Any] = None
 
 
 class MCPToolsListRequest(BaseModel):
     """MCP tools/list request from bridge client"""
     method: str = "tools/list"
     params: Dict[str, Any] = Field(default_factory=dict)
-    id: Optional[str] = None
+    id: Optional[Any] = None
 
 
 class MCPToolCallRequest(BaseModel):
     """MCP tools/call request from bridge client"""
     method: str = "tools/call"
     params: Dict[str, Any]
-    id: Optional[str] = None
+    id: Optional[Any] = None
 
 
 class MCPResourcesListRequest(BaseModel):
     """MCP resources/list request from bridge client"""
     method: str = "resources/list"
     params: Dict[str, Any] = Field(default_factory=dict)
-    id: Optional[str] = None
+    id: Optional[Any] = None
 
 
 class MCPPromptsListRequest(BaseModel):
     """MCP prompts/list request from bridge client"""
     method: str = "prompts/list"
     params: Dict[str, Any] = Field(default_factory=dict)
-    id: Optional[str] = None
+    id: Optional[Any] = None
 
 
 class MCPResponse(BaseModel):
     """Standard MCP response"""
     jsonrpc: str = "2.0"
-    id: Optional[str] = None
+    id: Optional[Any] = None
     result: Optional[Dict[str, Any]] = None
     error: Optional[Dict[str, Any]] = None
 
@@ -234,7 +234,6 @@ async def mcp_initialize(
         }
     )
 
-
 @app.get("/mcp/tools", response_model=MCPResponse)
 async def mcp_tools_list(
     request_id: Optional[str] = None,
@@ -250,10 +249,12 @@ async def mcp_tools_list(
         # Aggregate tools from all MCP servers
         all_tools = await mcp_pool.get_all_tools()
         
+        logger.info("Tools listed successfully", tool_count=len(all_tools))
         return MCPResponse(
             id=request_id,
             result={"tools": all_tools}
         )
+        
     except Exception as e:
         logger.error("Error listing tools", error=str(e))
         return MCPResponse(
@@ -358,7 +359,7 @@ def main():
     
     parser = argparse.ArgumentParser(description="MCP Control Plane Server")
     parser.add_argument("--host", default="0.0.0.0", help="Host to bind to")
-    parser.add_argument("--port", type=int, default=8443, help="Port to bind to")
+    parser.add_argument("--port", type=int, default=8444, help="Port to bind to")
     parser.add_argument("--config", help="Path to configuration file")
     parser.add_argument("--log-level", default="INFO", help="Log level")
     

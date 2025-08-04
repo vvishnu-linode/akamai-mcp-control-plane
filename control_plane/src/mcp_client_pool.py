@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 import structlog
 
-from .config import MCPServerConfig
+from config import MCPServerConfig
 
 logger = structlog.get_logger("mcp_pool")
 
@@ -240,10 +240,9 @@ class MCPClientPool:
         request = {
             "jsonrpc": "2.0",
             "id": request_id,
-            "method": method
+            "method": method,
+            "params": params or {}
         }
-        if params:
-            request["params"] = params
         
         # Create future for response
         future = asyncio.Future()
@@ -276,29 +275,35 @@ class MCPClientPool:
         for server_id, server in self.servers.items():
             if server.status == ServerStatus.RUNNING:
                 try:
-                    response = await self._send_request(server_id, "tools/list")
+                    logger.info("Sending tools/list request to server", server_id=server_id)
+                    response = await self._send_request(server_id, "tools/list", {})
+                    logger.info("Received tools/list response", server_id=server_id, response=response)
                     
                     if "result" in response and "tools" in response["result"]:
                         tools = response["result"]["tools"]
+                        logger.info("Found tools in response", server_id=server_id, tool_count=len(tools))
                         for tool in tools:
                             tool_name = tool.get("name")
                             if tool_name:
                                 self.tool_registry[tool_name] = server_id
-                                logger.debug("Registered tool", tool=tool_name, server=server_id)
+                                logger.info("Registered tool", tool=tool_name, server=server_id)
+                    else:
+                        logger.warning("No tools found in response", server_id=server_id, response=response)
                 
                 except Exception as e:
-                    logger.error("Error discovering tools", server_id=server_id, error=str(e))
+                    logger.error("Error discovering tools", server_id=server_id, error=str(e), exc_info=True)
         
         logger.info("Tool discovery complete", tool_count=len(self.tool_registry))
     
     async def get_all_tools(self) -> List[Dict[str, Any]]:
         """Get all available tools from all servers"""
         all_tools = []
+        logger.info("Getting all tools from MCP servers")
         
         for server_id, server in self.servers.items():
             if server.status == ServerStatus.RUNNING:
                 try:
-                    response = await self._send_request(server_id, "tools/list")
+                    response = await self._send_request(server_id, "tools/list", {})
                     
                     if "result" in response and "tools" in response["result"]:
                         all_tools.extend(response["result"]["tools"])

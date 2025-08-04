@@ -46,7 +46,7 @@ Add this configuration to your Claude Desktop config file:
         "src/bridge_client.py"
       ],
       "env": {
-        "MCP_CONTROL_PLANE_URL": "https://localhost:8443",
+        "MCP_CONTROL_PLANE_URL": "https://localhost:8444",
         "MCP_AUTH_TOKEN": "dev-token-secure-string"
       },
       "stderr": true

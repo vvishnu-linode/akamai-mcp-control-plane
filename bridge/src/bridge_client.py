@@ -27,7 +27,7 @@ from pydantic import BaseModel, ValidationError
 @dataclass
 class BridgeConfig:
     """Configuration for the MCP Bridge Client"""
-    control_plane_url: str = "https://localhost:8443"
+    control_plane_url: str = "http://localhost:8444"
     auth_token: Optional[str] = None
     timeout_seconds: int = 30
     retry_attempts: int = 3
@@ -38,8 +38,10 @@ class BridgeConfig:
         # Load from environment if not set
         if not self.auth_token:
             self.auth_token = os.getenv("MCP_AUTH_TOKEN")
+        # Only override URL if explicitly set and different from default
         if env_url := os.getenv("MCP_CONTROL_PLANE_URL"):
-            self.control_plane_url = env_url
+            if env_url != "https://localhost:8443":  # Don't override if it's the old default
+                self.control_plane_url = env_url
 
 
 class MCPMessage(BaseModel):
@@ -249,194 +251,17 @@ class MCPBridgeClient:
             raise RuntimeError("HTTP session not initialized")
         
         try:
-            # For now, implement a simple pass-through
-            # In future phases, this will be actual HTTP communication
-            # Currently returning a basic response for testing
-            
+            # Route different methods to appropriate endpoints
             if message.method == "initialize":
-                return MCPMessage(
-                    id=message.id,
-                    result={
-                        "protocolVersion": "2025-06-18",
-                        "capabilities": {
-                            "tools": {},
-                            "resources": {},
-                            "prompts": {}
-                        },
-                        "serverInfo": {
-                            "name": "MCP Bridge",
-                            "version": "1.0.0"
-                        }
-                    }
-                )
+                return await self._call_control_plane_initialize(message)
             elif message.method == "tools/list":
-                return MCPMessage(
-                    id=message.id,
-                    result={
-                        "tools": [
-                            {
-                                "name": "query_database",
-                                "description": "Execute SQL queries against the company database",
-                                "inputSchema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "query": {
-                                            "type": "string",
-                                            "description": "SQL query to execute"
-                                        },
-                                        "database": {
-                                            "type": "string",
-                                            "description": "Database name (optional)",
-                                            "default": "main"
-                                        }
-                                    },
-                                    "required": ["query"]
-                                }
-                            },
-                            {
-                                "name": "read_file",
-                                "description": "Read contents of a file from the filesystem",
-                                "inputSchema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "file_path": {
-                                            "type": "string",
-                                            "description": "Path to the file to read"
-                                        },
-                                        "encoding": {
-                                            "type": "string",
-                                            "description": "File encoding",
-                                            "default": "utf-8"
-                                        }
-                                    },
-                                    "required": ["file_path"]
-                                }
-                            },
-                            {
-                                "name": "send_slack_message",
-                                "description": "Send a message to a Slack channel",
-                                "inputSchema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "channel": {
-                                            "type": "string",
-                                            "description": "Slack channel name or ID"
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "description": "Message content to send"
-                                        },
-                                        "thread_ts": {
-                                            "type": "string",
-                                            "description": "Timestamp of parent message (for replies)",
-                                            "optional": True
-                                        }
-                                    },
-                                    "required": ["channel", "message"]
-                                }
-                            },
-                            {
-                                "name": "get_weather",
-                                "description": "Get current weather information for a location",
-                                "inputSchema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "location": {
-                                            "type": "string",
-                                            "description": "City name or coordinates"
-                                        },
-                                        "units": {
-                                            "type": "string",
-                                            "description": "Temperature units",
-                                            "enum": ["celsius", "fahrenheit"],
-                                            "default": "celsius"
-                                        }
-                                    },
-                                    "required": ["location"]
-                                }
-                            },
-                            {
-                                "name": "search_codebase",
-                                "description": "Search for code patterns across the repository",
-                                "inputSchema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "pattern": {
-                                            "type": "string",
-                                            "description": "Search pattern or regex"
-                                        },
-                                        "file_types": {
-                                            "type": "array",
-                                            "items": {"type": "string"},
-                                            "description": "File extensions to search",
-                                            "default": ["py", "js", "ts", "go", "java"]
-                                        },
-                                        "case_sensitive": {
-                                            "type": "boolean",
-                                            "description": "Whether search should be case sensitive",
-                                            "default": False
-                                        }
-                                    },
-                                    "required": ["pattern"]
-                                }
-                            },
-                            {
-                                "name": "create_jira_ticket",
-                                "description": "Create a new JIRA ticket",
-                                "inputSchema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "project": {
-                                            "type": "string",
-                                            "description": "JIRA project key"
-                                        },
-                                        "summary": {
-                                            "type": "string",
-                                            "description": "Ticket summary/title"
-                                        },
-                                        "description": {
-                                            "type": "string",
-                                            "description": "Detailed ticket description"
-                                        },
-                                        "issue_type": {
-                                            "type": "string",
-                                            "description": "Type of issue",
-                                            "enum": ["Bug", "Task", "Story", "Epic"],
-                                            "default": "Task"
-                                        },
-                                        "priority": {
-                                            "type": "string",
-                                            "description": "Issue priority",
-                                            "enum": ["Low", "Medium", "High", "Critical"],
-                                            "default": "Medium"
-                                        }
-                                    },
-                                    "required": ["project", "summary", "description"]
-                                }
-                            }
-                        ]
-                    }
-                )
+                return await self._call_control_plane_get(f"/mcp/tools?request_id={message.id}")
             elif message.method == "tools/call":
-                # Handle tool execution with mock responses
-                tool_name = message.params.get("name") if message.params else None
-                arguments = message.params.get("arguments", {}) if message.params else {}
-                
-                return await self._handle_tool_call(message.id, tool_name, arguments)
+                return await self._call_control_plane_post("/mcp/tools/call", message)
             elif message.method == "resources/list":
-                return MCPMessage(
-                    id=message.id,
-                    result={
-                        "resources": []
-                    }
-                )
+                return await self._call_control_plane_get(f"/mcp/resources?request_id={message.id}")
             elif message.method == "prompts/list":
-                return MCPMessage(
-                    id=message.id,
-                    result={
-                        "prompts": []
-                    }
-                )
+                return await self._call_control_plane_get(f"/mcp/prompts?request_id={message.id}")
             else:
                 return MCPMessage(
                     id=message.id,
@@ -447,131 +272,74 @@ class MCPBridgeClient:
                 )
                 
         except Exception as e:
-            self.logger.error("Error forwarding to control plane", error=str(e))
-            raise
-    
-    async def _handle_tool_call(self, request_id: Union[str, int], tool_name: str, arguments: Dict[str, Any]) -> MCPMessage:
-        """Handle tool execution with mock responses for testing"""
-        self.logger.info("Handling tool call", tool=tool_name, args=arguments)
-        
-        try:
-            if tool_name == "query_database":
-                query = arguments.get("query", "")
-                database = arguments.get("database", "main")
-                return MCPMessage(
-                    id=request_id,
-                    result={
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": f"Mock database query executed successfully:\nQuery: {query}\nDatabase: {database}\n\nResults:\n+----+----------+-------+\n| id | name     | value |\n+----+----------+-------+\n|  1 | example  | 100   |\n|  2 | test     | 200   |\n+----+----------+-------+\n\n2 rows returned"
-                            }
-                        ]
-                    }
-                )
-            
-            elif tool_name == "read_file":
-                file_path = arguments.get("file_path", "")
-                encoding = arguments.get("encoding", "utf-8")
-                return MCPMessage(
-                    id=request_id,
-                    result={
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": f"Mock file content for: {file_path}\nEncoding: {encoding}\n\n# Example File Content\n\ndef example_function():\n    return 'This is a mock file response'\n\nif __name__ == '__main__':\n    print(example_function())\n"
-                            }
-                        ]
-                    }
-                )
-            
-            elif tool_name == "send_slack_message":
-                channel = arguments.get("channel", "")
-                message = arguments.get("message", "")
-                thread_ts = arguments.get("thread_ts")
-                return MCPMessage(
-                    id=request_id,
-                    result={
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": f"Mock Slack message sent successfully!\nChannel: {channel}\nMessage: {message}\n" + 
-                                       (f"Thread: {thread_ts}\n" if thread_ts else "") + 
-                                       "Message ID: mock_msg_1234567890.123\nTimestamp: 2024-01-15T10:30:00Z"
-                            }
-                        ]
-                    }
-                )
-            
-            elif tool_name == "get_weather":
-                location = arguments.get("location", "")
-                units = arguments.get("units", "celsius")
-                temp_symbol = "°C" if units == "celsius" else "°F"
-                temp_value = "22" if units == "celsius" else "72"
-                return MCPMessage(
-                    id=request_id,
-                    result={
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": f"Mock weather data for: {location}\n\nCurrent Weather:\n- Temperature: {temp_value}{temp_symbol}\n- Condition: Partly Cloudy\n- Humidity: 65%\n- Wind: 10 km/h NW\n- Pressure: 1013 mb\n- Visibility: 15 km\n\nLast updated: 2024-01-15 10:30 UTC"
-                            }
-                        ]
-                    }
-                )
-            
-            elif tool_name == "search_codebase":
-                pattern = arguments.get("pattern", "")
-                file_types = arguments.get("file_types", ["py", "js", "ts"])
-                case_sensitive = arguments.get("case_sensitive", False)
-                return MCPMessage(
-                    id=request_id,
-                    result={
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": f"Mock codebase search results:\nPattern: {pattern}\nFile types: {', '.join(file_types)}\nCase sensitive: {case_sensitive}\n\nResults found in 3 files:\n\n1. src/main.py:45\n   def {pattern}_handler():\n       return 'example match'\n\n2. tests/test_main.py:12\n   # Testing {pattern} functionality\n   assert {pattern}_handler() == 'expected'\n\n3. docs/api.md:89\n   The {pattern} method is used for...\n\nTotal matches: 3 files, 5 occurrences"
-                            }
-                        ]
-                    }
-                )
-            
-            elif tool_name == "create_jira_ticket":
-                project = arguments.get("project", "")
-                summary = arguments.get("summary", "")
-                description = arguments.get("description", "")
-                issue_type = arguments.get("issue_type", "Task")
-                priority = arguments.get("priority", "Medium")
-                return MCPMessage(
-                    id=request_id,
-                    result={
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": f"Mock JIRA ticket created successfully!\n\nTicket Details:\n- Key: {project}-1234\n- Project: {project}\n- Summary: {summary}\n- Type: {issue_type}\n- Priority: {priority}\n- Status: Open\n- Reporter: mock.user@example.com\n- Created: 2024-01-15T10:30:00Z\n\nDescription:\n{description}\n\nURL: https://company.atlassian.net/browse/{project}-1234"
-                            }
-                        ]
-                    }
-                )
-            
-            else:
-                return MCPMessage(
-                    id=request_id,
-                    error={
-                        "code": -32602,
-                        "message": f"Unknown tool: {tool_name}"
-                    }
-                )
-                
-        except Exception as e:
-            self.logger.error("Error in tool call", tool=tool_name, error=str(e))
+            self.logger.error("Error forwarding to control plane", error=str(e), method=message.method)
+            # Return error response instead of raising
             return MCPMessage(
-                id=request_id,
+                id=message.id,
                 error={
                     "code": -32603,
-                    "message": f"Tool execution failed: {str(e)}"
+                    "message": f"Control plane error: {str(e)}"
                 }
             )
+    
+    async def _call_control_plane_initialize(self, message: MCPMessage) -> MCPMessage:
+        """Handle initialize request to control plane"""
+        try:
+            request_data = {
+                "method": message.method,
+                "params": message.params or {},
+                "id": message.id
+            }
+            
+            response = await self.session.post(
+                f"{self.config.control_plane_url}/mcp/initialize",
+                json=request_data
+            )
+            response.raise_for_status()
+            
+            result = response.json()
+            return MCPMessage.model_validate(result)
+            
+        except Exception as e:
+            self.logger.error("Initialize request failed", error=str(e))
+            raise
+    
+    async def _call_control_plane_post(self, endpoint: str, message: MCPMessage) -> MCPMessage:
+        """Make POST request to control plane"""
+        try:
+            request_data = {
+                "method": message.method,
+                "params": message.params or {},
+                "id": message.id
+            }
+            
+            response = await self.session.post(
+                f"{self.config.control_plane_url}{endpoint}",
+                json=request_data
+            )
+            response.raise_for_status()
+            
+            result = response.json()
+            return MCPMessage.model_validate(result)
+            
+        except Exception as e:
+            self.logger.error("POST request failed", endpoint=endpoint, error=str(e))
+            raise
+    
+    async def _call_control_plane_get(self, endpoint: str) -> MCPMessage:
+        """Make GET request to control plane"""
+        try:
+            response = await self.session.get(
+                f"{self.config.control_plane_url}{endpoint}"
+            )
+            response.raise_for_status()
+            
+            result = response.json()
+            return MCPMessage.model_validate(result)
+            
+        except Exception as e:
+            self.logger.error("GET request failed", endpoint=endpoint, error=str(e))
+            raise
     
     async def _send_response(self, message: MCPMessage):
         """Send response message to stdout"""
@@ -625,7 +393,7 @@ def main():
     
     @app.command()
     def run(
-        control_plane_url: str = typer.Option("https://localhost:8443", help="Control plane URL"),
+        control_plane_url: str = typer.Option("http://localhost:8444", help="Control plane URL"),
         auth_token: Optional[str] = typer.Option(None, help="Authentication token"),
         log_level: str = typer.Option("INFO", help="Log level"),
         log_file: Optional[str] = typer.Option(None, help="Log file path"),

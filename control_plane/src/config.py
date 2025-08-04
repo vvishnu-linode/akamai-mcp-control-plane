@@ -43,7 +43,7 @@ class MCPServerConfig(BaseModel):
 class ServerConfig(BaseModel):
     """Configuration for the control plane server itself"""
     host: str = Field("0.0.0.0", description="Host to bind to")
-    port: int = Field(8443, description="Port to bind to")
+    port: int = Field(8444, description="Port to bind to")
     workers: int = Field(1, description="Number of worker processes")
     log_level: str = Field("INFO", description="Log level")
     cors_origins: List[str] = Field(default_factory=list, description="CORS allowed origins")
@@ -117,7 +117,7 @@ class ControlPlaneConfig(BaseModel):
         config = {
             "server": {
                 "host": os.getenv("MCP_HOST", "0.0.0.0"),
-                "port": int(os.getenv("MCP_PORT", "8443")),
+                "port": int(os.getenv("MCP_PORT", "8444")),
                 "log_level": os.getenv("MCP_LOG_LEVEL", "INFO"),
             },
             "auth_tokens": [token.strip() for token in auth_tokens],
